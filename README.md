@@ -46,12 +46,15 @@ Notes in Junit 5
 #Life Cycle
 	. Setup (class level) @BeforeAll public static setUpAll (ex : database connection)
 		... Setup (method level) @BeforeEach : you can have multiple but the order not garanted in the same class , but the super will run first
+
 			... Test (@Test)
+
 		... Cleanup (Method level) @AfterEach 
+
 	. Clean Up (class level) @AfterAll
+	
 
 
 
 
 
-		
