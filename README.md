@@ -44,7 +44,9 @@ Notes in Junit 5
 				  in this case the test will fail if one or more of asserts failed , and we get all fails in the same report
 
 #Life Cycle
+
 	. Setup (class level) @BeforeAll public static setUpAll (ex : database connection)
+	
 		... Setup (method level) @BeforeEach : you can have multiple but the order not garanted in the same class , but the super will run first
 
 			... Test (@Test)
@@ -52,7 +54,7 @@ Notes in Junit 5
 		... Cleanup (Method level) @AfterEach 
 
 	. Clean Up (class level) @AfterAll
-	
+
 
 
 
