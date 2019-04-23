@@ -1,0 +1,96 @@
+ WITH DETECTED_TIERS as (select *
+from a_tiers
+where top_pp_pm='PP'
+and type_tiers = '01'
+and natu_tiers='1'
+and top_banque_prive in ('005', '009')
+and top_sup = false
+and id_tiers in (select id_tiers_pp_pm
+				from  a_tiers_guichets
+				where top_sup =false
+				and NATUR_LIEN_PP_PM_CG='01'
+				and code_banque||code_guichet||num_client in ( select code_banque||code_guichet||num_client
+															from a_guichets
+															where  type_cli in ('01','21','22','23')
+															and guichet_statut in (1,3)
+															 and top_sup = false)
+				))tpost
+Select id_tiers,code_opt_facturation from a_prestations
+where id_tiers in (select id_tiers from DETECTED_TIERS where code_source='001');
+
+
+
+
+ SELECT generate_series(1,10) AS id, text AS descr;
+
+
+
+create table tiers_random as select 'tiers_'||s id_tiers, md5(random()::text) from generate_Series(1,10000000) s;
+create table eligibilite_random as select 'tiers_'||s id_tiers, md5(random()::text) from generate_Series(100,200000) s;
+create table prestations_random as select 'tiers_'||s id_tiers,generate_series(1,2) code_source , md5(random()::text) from generate_Series(100,5000000) s;
+create table guichet_random as select s as code_banque,s as code_guichet, s as num_client, md5(random()::text), generate_series(1,3)  guichet_statut from generate_Series(1,10000000) s;
+create table tiers_guichets_random as select generate_series(1,3)  nature_lien_pp_pm_cg, 'tiers_'||s as id_tiers,s as code_banque,s as code_guichet, s as num_client from generate_Series(1,10000000) s;
+
+
+
+
+with detected as (
+	select * from tiers_random
+	where id_tiers in (select id_tiers 
+					   from  tiers_guichets_random 
+					   where nature_lien_pp_pm_cg = 1
+					   and code_banque||'-'||code_guichet||'-'||num_client in (select code_banque||'-'||code_guichet||'-'||num_client
+																   	from guichet_random
+																   where  guichet_statut=1))
+),existing as (select * from eligibilite_random)
+select id_tiers,code_source, 'create' operation
+from prestations_random
+where id_tiers in (select id_tiers from detected)
+and  exists (select 1 from existing where existing.id_tiers=prestations_random.id_tiers)
+union
+select id_tiers, null, 'delete' operation
+from existing
+where  not exists (select 1 from detected where detected.id_tiers=existing.id_tiers);
+
+-- ===============================================================
+					   
+with detected as (
+	select id_tiers from tiers_random
+	where id_tiers in (select id_tiers 
+					   from  tiers_guichets_random 
+					   where nature_lien_pp_pm_cg = 1
+					   and code_banque||'-'||code_guichet||'-'||num_client in (select code_banque||'-'||code_guichet||'-'||num_client
+																   	from guichet_random
+																   where  guichet_statut=1)) limit 10
+),existing as (select * from eligibilite_random)
+select id_tiers,code_source, 'create' operation
+from prestations_random
+where id_tiers in (select id_tiers from detected)
+and  id_tiers not in (select id_tiers from existing )
+union
+select id_tiers, null, 'delete' operation
+from existing
+where  id_tiers not in  (select id_tiers from detected )
+limit 10;
+
+					   
+					   
+					   
+					   
+					   
+
+CREATE INDEX idx_tiers_guichets_random_bcg 
+   ON tiers_guichets_random USING btree ( (code_banque||'-'||code_guichet||'-'||num_client) );
+   
+CREATE INDEX idx_guichet_random_bgc
+   ON guichet_random USING btree ( (code_banque||'-'||code_guichet||'-'||num_client) )
+   
+create index idx_status_guichet_random on guichet_random using btree ( guichet_statut );
+
+drop table eligibilite_random;
+drop table guichet_random;
+drop table tiers_guichets_random;
+
+select * from eligibilite_random limit 10;
+
+
