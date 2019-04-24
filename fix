@@ -1,0 +1,136 @@
+package io.spring.helloworld.domain;
+
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.JobRegistry;
+import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemStreamReader;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
+import org.springframework.batch.item.database.JdbcBatchItemWriter;
+import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.support.ClassifierCompositeItemWriter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.classify.Classifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import javax.sql.DataSource;
+
+@Configuration
+@EnableBatchProcessing
+public class BatchConfiguration {
+	
+	@Autowired
+	private JobRegistry jobRegistry;
+	
+	@Autowired
+	private DataSource dataSource;
+	
+	@Autowired
+	private JobBuilderFactory jobs;
+	
+	@Autowired
+	private StepBuilderFactory steps;
+
+	
+	@Bean
+	public Job importUserJob() {
+		return jobs.get("databaseToDatabaseJob")
+				.incrementer(new RunIdIncrementer())
+				.start(step1())
+				.build();
+	}
+
+	String query="with detected as ( " +
+			" select * from tiers_random " +
+			" where id_tiers in (select id_tiers  " +
+			"        from  tiers_guichets_random  " +
+			"        where nature_lien_pp_pm_cg = 1 " +
+			"        and code_banque||'-'||code_guichet||'-'||num_client in (select code_banque||'-'||code_guichet||'-'||num_client " +
+			"                    from guichet_random " +
+			"                   where  guichet_statut=1)) " +
+			"),existing as (select * from eligibilite_random) " +
+			"select id_tiers,code_source, 'create' operation " +
+			"from prestations_random " +
+			"where id_tiers in (select id_tiers from detected) " +
+			"and  exists (select 1 from existing where existing.id_tiers=prestations_random.id_tiers) " +
+			"union " +
+			"select id_tiers, null, 'delete' operation " +
+			"from existing " +
+			"where  not exists (select 1 from detected where detected.id_tiers=existing.id_tiers); ";
+	@Bean
+	public Step step1() {
+		return steps.get("databaseToDatabaseStep")
+				.<Eligibilite, Eligibilite> chunk(100)
+				.reader(reader())
+				.processor(processor())
+				.writer(classifierCompositeItemWriter(eligibiliteInsertWriter(),eligibiliteDeleteWriter()))
+				.build();
+				
+						
+
+
+		
+	}
+	
+	
+	@Bean
+	public ItemStreamReader<Eligibilite> reader() {
+			JdbcCursorItemReader<Eligibilite> reader = new JdbcCursorItemReader<Eligibilite>();
+		reader.setDataSource(dataSource);
+		reader.setFetchSize(100);
+		reader.setSql(query);
+		reader.setRowMapper(new EligibiliteRowMapper());
+		return reader;
+	}
+
+	@Bean
+	public ItemProcessor<Eligibilite, Eligibilite> processor() {
+		return new EligibiliteItemProcessor();
+	}
+
+	@Bean
+	public ItemWriter<Eligibilite> eligibiliteInsertWriter() {
+		JdbcBatchItemWriter<Eligibilite> writer = new JdbcBatchItemWriter<Eligibilite>();
+		writer.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<Eligibilite>());
+		
+		writer.setSql("INSERT INTO eligibilite (id_tiers) VALUES (:idTiers)");
+		writer.setDataSource(dataSource);
+		return writer;
+	}
+
+	@Bean
+	public ItemWriter<Eligibilite> eligibiliteDeleteWriter() {
+		JdbcBatchItemWriter<Eligibilite> eligibiliteInsertWriter = new JdbcBatchItemWriter<Eligibilite>();
+		eligibiliteInsertWriter.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<Eligibilite>());
+
+		eligibiliteInsertWriter.setSql("delete from  eligibilite where id_tiers=:idTiers");
+		eligibiliteInsertWriter.setDataSource(dataSource);
+		return eligibiliteInsertWriter;
+	}
+
+	@Bean
+	public ClassifierCompositeItemWriter<Eligibilite> classifierCompositeItemWriter(
+			ItemWriter< Eligibilite> eligibiliteInsertWriter,
+			ItemWriter< Eligibilite> eligibiliteDeleteWriter
+	) {
+		ClassifierCompositeItemWriter< Eligibilite> classifierCompositeItemWriter = new ClassifierCompositeItemWriter<>();
+		classifierCompositeItemWriter.setClassifier(new Classifier<Eligibilite, ItemWriter<? super Eligibilite>>() {
+			@Override
+			public ItemWriter<? super  Eligibilite> classify( Eligibilite eligibilite) {
+				if (eligibilite.getStatus().equalsIgnoreCase("create")) {
+					return eligibiliteInsertWriter;
+				} else {
+					return eligibiliteDeleteWriter;
+				}
+			}
+		});
+		return classifierCompositeItemWriter;
+	}
+
+}
