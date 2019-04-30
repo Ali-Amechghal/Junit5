@@ -1,0 +1,21 @@
+
+import com.socgen.itim.fft.dto.Eligibilite;
+import org.springframework.jdbc.core.RowMapper;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+public class EligibiliteRowMapper implements RowMapper<Eligibilite> {
+
+	@Override
+	public Eligibilite mapRow(ResultSet rs, int rowNum) throws SQLException {
+		Eligibilite eligibilite =  Eligibilite.builder()
+				.idTiers(rs.getString("id_tiers"))
+				.status(rs.getString("status"))
+				.codeOptFacturation(rs.getString("code_opt_facturation"))
+				.build();
+		
+		return eligibilite;
+	}
+ 
+}
