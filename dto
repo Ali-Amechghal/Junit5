@@ -1,0 +1,28 @@
+
+import lombok.Builder;
+import lombok.Data;
+
+import java.sql.Timestamp;
+import java.time.LocalDate;
+
+@Data
+@Builder
+public class Eligibilite {
+    
+    private long id_eligibilite;
+    private String idTiers;
+    private boolean topEligibilite;
+    private boolean topCotation;
+    private boolean topOppChequier;
+    private boolean topRevenusFrais;
+    private boolean topUsageAbusifCarte;
+    private LocalDate dateEntreeEligibilite;
+    private LocalDate dateSortieEligibilite;
+    private boolean topFragiliteFft;
+    private boolean topGeneris;
+    private String status;
+    private String codeOptFacturation;
+    private Timestamp currentDateTime ;
+    
+
+}
