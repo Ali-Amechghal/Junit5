@@ -59,7 +59,7 @@ Notes in Junit 5
 
 Test engine will build instance for class for each test method , if you prefere to use a single class instance for all test methods
 ```java
-	@TestListener(LifeCycle.PER_CLASS)
+	@TestInstance(LifeCycle.PER_CLASS)
 	class CustomerSpec..
 ```
 
