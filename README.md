@@ -62,7 +62,22 @@ Test engine will build instance for class for each test method , if you prefere 
 	@TestInstance(LifeCycle.PER_CLASS)
 	class CustomerSpec..
 ```
+## Assumptions
+condition to execute assertion , it not fail the test but stop the test it just abord the test
+     assumeTrue, assumeFalse , AssumingThat
+     
+     Ex : the test will not fail, but it will be abored , cause the assert is not executed , the assume is false
+```java
+	assumeTrue(1 == 2);
+	assertEquals(10, 1);
+	
+	assumingThat(boolean , () -> { assertEquals(,)}
+	
+```
 
+you can put assumption in the beforeEach methods to control all method execution
+
+## Interface & Default Method     
 
 
 
